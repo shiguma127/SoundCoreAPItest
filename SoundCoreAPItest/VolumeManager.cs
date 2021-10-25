@@ -7,11 +7,11 @@ namespace SoundCoreAPItest
 {
     class VolumeManager
     {
-        public List<(SimpleAudioVolume, AudioSessionControl2)> list;
+        public List<VolumeController> list;
 
         public VolumeManager()
         {
-            list = new List<(SimpleAudioVolume, AudioSessionControl2)>();
+            list = new List<VolumeController>();
             using (var sessionManager = GetDefaultAudioSessionManager(DataFlow.Render))
             {
                 AudioSessionEnumerator sessionEnumerator = sessionManager.GetSessionEnumerator();
@@ -19,8 +19,6 @@ namespace SoundCoreAPItest
                 {
                     try
                     {
-                        // usingで書くべき箇所
-
                         var simpleVolume = session.QueryInterface<SimpleAudioVolume>();
                         var sessionControl = session.QueryInterface<AudioSessionControl2>();
                         Process process = Process.GetProcessById(sessionControl.ProcessID);
@@ -32,7 +30,8 @@ namespace SoundCoreAPItest
                         Console.Write(" : ");
                         Console.WriteLine(simpleVolume.MasterVolume);
                         //session.RegisterAudioSessionNotification(events);
-                        list.Add((simpleVolume, sessionControl));
+                        sessionControl.SimpleVolumeChanged += (o, e) => { Console.WriteLine(e.NewVolume); };
+                        list.Add(new VolumeController(sessionControl,simpleVolume));
                     }
                     catch (ArgumentException)
                     {
@@ -44,16 +43,6 @@ namespace SoundCoreAPItest
                     }
                 }
             }
-            list.ForEach((item) =>
-            {
-                /*
-                 * Processを取りに行くのが遅いのでクラス作ってProcess名とSimpleAudioVolumeを取りに行くのが良いかも
-                 * イベントのためにAudioSessionControlも必要
-                 *
-                */
-                
-                item.Item2.SimpleVolumeChanged += (o,e)=> { Console.WriteLine(item.Item2.Process.ProcessName + ":" + e.NewVolume); };
-            });
         }
 
 
@@ -61,9 +50,9 @@ namespace SoundCoreAPItest
         {
             foreach (var item in list)
             {
-                if (item.Item2.Process.ProcessName.Equals(processName))
+                if (item.ProcessName.Equals(processName))
                 {
-                    item.Item1.MasterVolume = volume;
+                    item.SimpleAudioVolume.MasterVolume = volume;
                 }
             }
         }
